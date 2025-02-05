@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Debug mapeval.py",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/mapeval.py",
+      "args": [
+        "-r=/orgs/CIEL/sources/CIEL/v2024-10-04/",
+        "-e=https://api.qa.openconceptlab.org/",
+        "-f=./samples/NMRS Concept Request from CCFN 22012025 final mappings.xlsx"
+      ],
+      "console": "integratedTerminal"
+    }
+  ]
+}

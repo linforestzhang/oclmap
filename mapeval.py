@@ -3,15 +3,6 @@ Script to evaluate the performance of a matching algorithm.
 Metrics:
 - Correct mapping is in the top n returned candidate(s)
 - Auto-match is correct
-
-1. Config
-    Set the performance metrics (i.e. top n) and auto-match rules
-    3. Configure field names
-    4. Set Target source
-2. Load spreadsheet
-3. Auto-match (retrieve n candidates)
-4. Evaluate metrics results
-5. Report results
 '''
 import argparse
 import time
@@ -21,36 +12,19 @@ import pandas as pd
 
 start_time = time.time()
 
-parser = argparse.ArgumentParser()
-parser.add_argument('-t', '--token', required=True)
-parser.add_argument('-f', '--file', required=False, default="/Users/sny/workspace/ocl/mapeval/NMRS ciel maps only.xlsx")
-parser.add_argument('-r', '--repo', required=False, default="/orgs/CIEL/sources/CIEL/v2024-10-04/")
-parser.add_argument('-e', '--env', default="http://localhost:8000")
+parser = argparse.ArgumentParser(prog='mapeval.py', description='Evaluate the performance of a matching algorithm')
+parser.add_argument('-t', '--token', required=True, help="OCL API token")
+parser.add_argument('-f', '--file', required=True, help="File of sourced data to map")
+parser.add_argument('-r', '--repo', required=False, help="Map target repo, e.g. /orgs/CIEL/sources/CIEL/v2024-10-04/", default="/orgs/CIEL/sources/CIEL/v2024-10-04/")
+parser.add_argument('-e', '--env', default="http://localhost:8000", help="OCL API environment, e.g. https://api.qa.openconceptlab.org")
+parser.add_argument('--endpoint', default="/concepts/$match/", help="$match endpoint, e.g. /concepts/$match/")
+parser.add_argument('--correct', default="correct_map_concept_id", help="Column name of the correct map")
+parser.add_argument('--columnmap', help="JSON file containing column mappings")
 parser.add_argument('-s', '--semantic', default='false', choices=['true', 'false'])
-parser.add_argument('-c', '--chunk', default=200)
-parser.add_argument('-nr', '--results', default=3)
+parser.add_argument('-c', '--chunk', default=200, help="Max chunk size to send to $match algorithm")
+parser.add_argument('-nr', '--results', default=3, help="Number of candidates to evaluate for each row")
 parser.add_argument('-v', '--verbose', default="0")
 args = parser.parse_args()
-
-# IMPORT FILE SETTINGS: KenyaEMR Concepts Mapped Dataset.xlsx
-# import_filename = "/Users/jonathanpayne/Google Drive/My Drive/OCL/OCL Shared/Mapping Tool/Sample Input Data/KenyaEMR Concepts Mapped Dataset.xlsx"
-# import_file_type = 'xlsx'  # e.g. csv, xlsx
-# correct_map_column_name = "True CIEL Concept"  # Example: to_concept_code
-# map_column_to_algorithm_key = {"Variable Name": "name", "Datatype": "datatype"}
-
-# IMPORT FILE SETTINGS: NMRS ciel maps only.xlsx
-import_filename = args.file
-import_file_type = args.file.split('.')[-1]  # e.g. csv, xlsx
-map_column_to_algorithm_key = {
-    "from_concept_name_resolved": "name",
-}
-correct_map_column_name = "to_concept_code"  # Example: to_concept_code
-
-# IMPORT FILE SETTINGS: Small Nigeria sample
-# import_filename = "/Users/jonathanpayne/Google Drive/My Drive/OCL/OCL Shared/Mapping Tool/Sample Input Data/NMRS mapping issues questions 2024-04-30.xlsx"
-# import_file_type = 'xlsx'  # e.g. csv, xlsx
-# correct_map_column_name = "CIEL Code"  # Example: to_concept_code
-# map_column_to_algorithm_key = {"id": "local-id", "local concept name": "name"}
 
 
 # ADDITIONAL SETTINGS
@@ -58,20 +32,42 @@ semantic = args.semantic
 top_n_threshold = args.results  # e.g. Top 1, or Top 3
 target_repo_url = args.repo
 ocl_api_token = args.token
-ocl_api_match_url = args.env + "/concepts/$match/"
+ocl_api_match_url = args.env + args.endpoint
 max_chunk_size = int(args.chunk)
+correct_map_column_name = args.correct
 chunk_delay = 0  # in seconds
+import_filename = args.file
+import_file_type = args.file.split('.')[-1]  # e.g. csv, xlsx
+
+# HANDLE COLUMN MAPPING
+map_column_to_algorithm_key = {}
+if args.columnmap:
+    map_column_to_algorithm_key = json.load(args.columnmap)
 
 # CONSTANTS
 list_algorithm_keys = ["id", "name", "synonyms", "description", "concept_class", "datatype", "same_as_map_codes", "other_map_codes"]
 candidates_limit = max(top_n_threshold, 1)  # Get at least 1 candidate. For auto-matching, will need to get at least 2.
 params = {
     "includeSearchMeta": True,
-    "semantic": semantic,
+    "semantic": False,
     "limit": candidates_limit,
-    "bestMatch": True
+    "bestMatch": False
 }
 headers = {"Authorization": "Token %s" % (ocl_api_token)}
+
+# Output script configuration
+print("\nCONFIGURATION:")
+print("  Filename: ", import_filename)
+print("  Target Repository: ", target_repo_url)
+print("  Matching API endpoint: ", ocl_api_match_url)
+print("  Correct Map Concept ID Column Name: ", correct_map_column_name)
+print("  Top n Threshold: ", top_n_threshold)
+print("  Chunk Size: ", max_chunk_size)
+print("  Semantic Search: ", semantic)
+if(args.columnmap):
+    print("  Column Mapping Filename: ", args.columnmap)
+if(map_column_to_algorithm_key):
+    print(json.dumps(map_column_to_algorithm_key, indent=4))
 
 # IMPORT
 if import_file_type == 'csv':
@@ -129,14 +125,15 @@ for chunk in list_of_chunked_data:
 
     print("\nChunk Match Count: ", f"{chunk_match_count} ({round((chunk_match_count/max_chunk_size) * 100, 2)}%)")
 
+# Report results
 print("\nRESULTS:")
-print("  Semantic: ", semantic)
-print("  top_n_threshold: ", top_n_threshold)
+print("  total_rows:", len(df))
 print("  num_correct_matches_in_top_n: ", num_correct_matches_in_top_n)
 print("  num_excluded_rows: ", num_excluded)
 print("  num_new_concept_proposed: ", num_new_concept_proposed)
-print("  total_rows:", len(df))
-print("  match_perc: ", round((num_correct_matches_in_top_n/len(df)) * 100, 2))
+print("  num_to_match: ", len(df) - num_new_concept_proposed - num_excluded)
+print("  num_correct_matches_in_top_n / num_to_match: ", round((num_correct_matches_in_top_n / (len(df) - num_new_concept_proposed - num_excluded)), 2))
+print("  num_correct_matches_in_top_n / total_rows: ", round((num_correct_matches_in_top_n / len(df)), 2))
 print("  Elapsed Seconds:", time.time() - start_time)
 if args.verbose in ['true', '1']:
     print("\n\nUnmatched", len(unmatched))
