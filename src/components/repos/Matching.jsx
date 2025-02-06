@@ -94,7 +94,7 @@ import isEmpty from 'lodash/isEmpty'
 import { OperationsContext } from '../app/LayoutContext';
 
 import APIService from '../../services/APIService';
-import { highlightTexts } from '../../common/utils';
+import { highlightTexts, dropVersion } from '../../common/utils';
 import { WHITE, SURFACE_COLORS, ERROR_COLORS } from '../../common/colors';
 
 import CloseIconButton from '../common/CloseIconButton';
@@ -103,6 +103,7 @@ import SearchHighlightsDialog from '../search/SearchHighlightsDialog'
 import ConceptHome from '../concepts/ConceptHome'
 import ConceptChip from '../concepts/ConceptChip'
 import RepoSearchAutocomplete from './RepoSearchAutocomplete'
+import RepoVersionSearchAutocomplete from './RepoVersionSearchAutocomplete'
 
 const HEADERS = [
   {id: 'id', label: 'ID'},
@@ -452,6 +453,8 @@ const Matching = () => {
 
   // repo state
   const [repo, setRepo] = React.useState(false)
+  const [repoVersion, setRepoVersion] = React.useState(false)
+  const [versions, setVersions] = React.useState([])
   const [conceptCache, setConceptCache] = React.useState({})
 
   const ALGOS = [
@@ -514,7 +517,7 @@ const Matching = () => {
       forEach(jsonData, (data, index) => {
         data.__index = index
         if(isResuming) {
-          let repo = {id: data['__Repo ID__'], version: data['__Repo Version__'], url: data['__Repo URL__']}
+          let repo = {id: data['__Repo ID__'], version: data['__Repo Version__'], url: dropVersion(data['__Repo URL__']), version_url: data['__Repo URL__']}
           let concept = {id: data['__Concept ID__'], url: data['__Concept URL__'], search_meta: {search_score: data['__Match Score__'], match_type: snakeCase(data['__Match Type__'])}, repo: repo}
           if(concept?.id) {
             _mapSelected[index] = concept
@@ -537,8 +540,10 @@ const Matching = () => {
         setMapSelected(_mapSelected)
         setRowStatuses(_states)
         setProposed(_proposed)
-        if(_repo?.url)
-          resolveRepo(_repo.url, _repo)
+        if(_repo?.url) {
+          fetchRepo(_repo.url, _repo)
+          fetchVersions(_repo.url, _repo.version)
+        }
       }
 
       setData(_data);
@@ -552,6 +557,10 @@ const Matching = () => {
     };
     reader.readAsBinaryString(file);
   };
+
+  const fetchRepo = (url, _repo) => {
+    APIService.new().overrideURL(url).get().then(response => setRepo(response.data?.id ? response.data : _repo))
+  }
 
   const onAlgoButtonClick = event => setAlgoMenuAnchorEl(algoMenuAnchorEl ? null : event.currentTarget)
 
@@ -684,11 +693,11 @@ const Matching = () => {
   const getPayloadForMatching = (rows, _repo) => {
     return {
       rows: map(rows, row => prepareRow(row)),
-      target_repo_url: _repo.version_url || _repo.url,
+      target_repo_url: repoVersion?.version_url || _repo.version_url || _repo.url,
       target_repo: {
         'owner': _repo.owner,
         'owner_type': _repo.owner_type,
-        'source_version': _repo.version || _repo.id,
+        'source_version': repoVersion?.id || _repo.version || _repo.id,
         'source': _repo.short_code || _repo.id
       },
     }
@@ -743,7 +752,7 @@ const Matching = () => {
               forEach(data, concept => {
                 if(get(concept, 'results.0.search_meta.match_type') === 'very_high') {
                   setMapSelected(_prev => {
-                    _prev[concept.row.__index] = {...concept.results[0], repo: _repo}
+                    _prev[concept.row.__index] = {...concept.results[0], repo: {..._repo, version: repoVersion?.id || _repo.version, version_url: repoVersion?.version_url || _repo.version_url}}
                     return _prev
                   })
                   prev.readyForReview = uniq([...prev.readyForReview, concept.row.__index])
@@ -771,21 +780,37 @@ const Matching = () => {
       return prev
     })
 
-    const response = await APIService.new().overrideURL('/$resolveReference/').post({url: repo.version_url || repo.url})
-    let _repo = get(response.data, '0.result.id') ? response.data[0].result : repo
-    setRepo(_repo)
-    await processWithConcurrency(_repo);
+    await processWithConcurrency(repo);
     setEndMatchingAt(moment())
     setLoadingMatches(false)
   };
 
-  const resolveRepo = (url, _repo) => {
-    APIService.new().overrideURL('/$resolveReference/').post({url: url}).then(response => {
-      if(get(response.data, '0.result.id'))
-        setRepo(response.data[0].result)
-      else
-        setRepo(_repo)
+  const fetchVersions = (url, _selectedVersion) => {
+    APIService.new().overrideURL(dropVersion(url)).appendToUrl('versions/').get(null, null, {brief: true}).then(response => {
+      let _versions = response.data
+      setVersions(_versions)
+      if(_selectedVersion) {
+        const _version = find(_versions, {id: _selectedVersion})
+        setRepoVersion(_version)
+      }
+      else if(_versions?.length === 1)
+        setRepoVersion(_versions[0])
+      else {
+        let releasedVersion = find(_versions, {released: true})
+        if(releasedVersion)
+          setRepoVersion(releasedVersion)
+      }
     })
+  }
+
+  const onRepoChange = (newRepo) => {
+    setRepo(newRepo)
+    if(newRepo?.url) {
+      fetchVersions(newRepo.url)
+    } else {
+      setVersions([])
+      setRepoVersion(false)
+    }
   }
 
   const prepareRow = csvRow => {
@@ -976,7 +1001,7 @@ const Matching = () => {
   }
 
   const _onMap = (concept, unmap=false) => {
-    setMapSelected(prev => ({...prev, [rowIndex]: unmap ? null : {...concept, repo: repo}}))
+    setMapSelected(prev => ({...prev, [rowIndex]: unmap ? null : {...concept, repo: {...repo, version: repoVersion?.id || repo.version, version_url: repoVersion?.version_url || repo.version_url}}}))
     setDecisions(prev => ({...prev, [rowIndex]: unmap ? null : 'map'}))
   }
 
@@ -1268,7 +1293,8 @@ const Matching = () => {
             >
               {ALGOS.find(_algo => _algo.id === algo).label}
             </Button>
-            <RepoSearchAutocomplete label='Map Target' size='small' onChange={(id, item) => setRepo(item)} value={repo} />
+            <RepoSearchAutocomplete label='Map Target' size='small' onChange={(id, item) => onRepoChange(item)} value={repo} />
+            <RepoVersionSearchAutocomplete versions={versions} label='Version' size='small' onChange={(id, item) => setRepoVersion(item)} value={repoVersion} sx={{marginTop: '10px'}} />
             <FormControlLabel sx={{marginTop: '8px'}} control={<Checkbox checked={autoMatchUnmappedOnly} onChange={event => setAutoMatchUnmappedOnly(event.target.checked)} />} label="Unmapped Only" />
             {!autoMatchUnmappedOnly && <FormHelperText sx={{marginTop: '-4px'}}>This will override existing matches</FormHelperText>}
           </DialogContent>
@@ -1380,7 +1406,8 @@ const Matching = () => {
                   >
                     {ALGOS.find(_algo => _algo.id === algo).label}
                   </Button>
-                  <RepoSearchAutocomplete label='Map Target' size='small' onChange={(id, item) => setRepo(item)} value={repo} />
+                  <RepoSearchAutocomplete label='Map Target' size='small' onChange={(id, item) => onRepoChange(item)} value={repo} />
+                  <RepoVersionSearchAutocomplete versions={versions} label='Version' size='small' onChange={(id, item) => setRepoVersion(item)} value={repoVersion} sx={{marginLeft: '10px'}} />
                   <Button
                     color='primary'
                     variant="contained"
