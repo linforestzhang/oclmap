@@ -1,0 +1,21 @@
+version: '3'
+
+services:
+  web:
+    image: openconceptlab/oclmap:${TAG-dev}
+    build:
+      context: .
+      target: build
+      args:
+        NODE_ENV: development
+    ports:
+      - "4004:4004"
+      - "4005:35729"
+      - "6008:6006"
+    restart: on-failure
+    volumes:
+      - .:/app:z
+    environment:
+      - LOGIN_REDIRECT_URL=${LOGIN_REDIRECT_URL-http://localhost:4004}
+      - OIDC_RP_CLIENT_ID=${OIDC_RP_CLIENT_ID-oclmaplocal}
+      - OIDC_RP_CLIENT_SECRET

@@ -1,0 +1,111 @@
+{
+  "common": {
+    "or": "o",
+    "language": "Idioma",
+    "help_and_documentation": "Ayuda y documentación",
+    "community_website": "Sitio web de la comunidad",
+    "chat": "Chat de OCL",
+    "clear": "Limpiar",
+    "updated_on": "Última actualización",
+    "updated_by": "Actualizado por",
+    "owner": "Propietario",
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "more": "Más",
+    "refresh": "Actualizar",
+    "or_go_to_your": "o ir a tu ",
+    "retired": "Retirado",
+    "id": "ID",
+    "name": "Nombre",
+    "created_on": "Creado en",
+    "version": "Versión",
+    "versions": "Versiones",
+    "summary": "Resumen",
+    "about": "Acerca de",
+    "view_all_attributes": "Ver todos los atributos",
+    "actions": "Acciones",
+    "metadata": "Metadatos",
+    "copied_to_clipboard": "Copiado al portapapeles",
+    "navigate": "Navegar",
+    "select": "Seleccionar",
+    "search": "Buscar",
+    "for": "para"
+  },
+  "errors": {
+    "404": "Lo siento, no se pudo encontrar tu página."
+  },
+  "dashboard": {
+    "name": "Tablero",
+    "welcome_line": "Bienvenido a OCL.",
+    "take_a_tour": "Haz un recorrido",
+    "hello": "Hola",
+    "create_repository": "Crear Repositorio"
+  },
+  "bookmarks": {
+    "name": "Marcadores"
+  },
+  "auth": {
+    "sign_in": "Iniciar sesión",
+    "sign_out": "Cerrar sesión",
+    "register": "Registrar",
+    "signing_in": "Iniciando sesión...",
+    "sign_in_success": "Ingreso exitoso.",
+    "sign_in_error": "No se pudo iniciar sesión en este momento."
+  },
+  "concept": {
+    "concepts": "Conceptos",
+    "display_name": "Nombre de visualización",
+    "concept_class": "Clase",
+    "datatype": "Tipo de dato",
+    "history": "Historia y comentarios",
+    "name_and_synonyms": "Nombre y sinónimos",
+    "descriptions": "Descripciones",
+    "copied_name": "Nombre del concepto y URL copiados al portapapeles",
+    "copied_description": "Descripción del concepto y URL copiados al portapapeles"
+  },
+  "mapping": {
+    "mappings": "Mapeos"
+  },
+  "repo": {
+    "repos": "Repositorios",
+    "repo": "Repositorio",
+    "repo_type": "Tipo de Repositorio",
+    "manage": "Gestionar Repositorio"
+  },
+  "org": {
+    "orgs": "Organizaciones",
+    "org": "Organización"
+  },
+  "user": {
+    "users": "Usuarios",
+    "user": "Usuario",
+    "my_profile": "Mi perfil",
+    "my_repositories": "Mis repositorios",
+    "my_organizations": "Mis organizaciones",
+    "my_bookmarks": "Mis marcadores",
+    "username": "Nombre de usuario",
+    "joined_on": "Unido en",
+    "email": "Correo electrónico",
+    "company": "Empresa",
+    "location": "Ubicación",
+    "website": "Sitio web",
+    "last_login": "Último inicio de sesión"
+  },
+  "search": {
+    "filters": "Filtros",
+    "concepts": "Conceptos",
+    "repos": "Repositorios",
+    "orgs": "Organizaciones",
+    "users": "Usuarios",
+    "sort_by": "Ordenar por",
+    "display": "Mostrar",
+    "loading": "Refinando los resultados de tu búsqueda...",
+    "no_results": "No pudimos encontrar coincidencias para ",
+    "input_placeholder": "Buscar en OCL...",
+    "table": "Tabla",
+    "card": "Tarjeta",
+    "search_all_site": "Buscar en todo OCL para ",
+    "search_this_repository": "Buscar en este repositorio",
+    "search_all_concepts": "Buscar todos los conceptos"
+  }
+}
