@@ -619,6 +619,7 @@ const Matching = () => {
     return (
       <React.Fragment>
         <TableCell
+          data-row-id={_row.__index}
           align='center'
           sx={{
             backgroundColor: defaultMatchTypeColor,
@@ -640,6 +641,7 @@ const Matching = () => {
             const isUpdatedValue = defaultValue !== value
             return (
               <TableCell
+                  data-row-id={_row.__index}
                 sx={{
                   cursor: 'pointer',
                   backgroundColor: isUpdatedValue ? UPDATED_COLOR : bgColor,
@@ -941,6 +943,12 @@ const Matching = () => {
       })
     setRow(csvRow)
     setDecisionTab('map_and_review')
+    const el = document.querySelector(`td[data-row-id="${csvRow.__index}"]`)
+    if(el) {
+      const rowEl = el.parentElement
+      if(rowEl)
+        rowEl.scrollIntoView({ behavior: "smooth", block: "center" })
+    }
   }
 
   const onCloseDecisions = () => {
@@ -1138,7 +1146,7 @@ const Matching = () => {
         </Paper>
         {
           (Boolean(rows?.length) || selectedMatchBucket || ROW_STATES.includes(selectedRowStatus) || searchText) &&
-            <div className='col-xs-12' style={{padding: '0', width: '100%', height: isSplitView ? 'calc(100vh - 245px)' : 'calc(100vh - 195px)'}}>
+            <div className='col-xs-12' style={{padding: '0', width: '100%', height: 'calc(100vh - 300px)'}}>
               <div className='col-xs-12' style={{padding: '0 12px', display: 'flex', backgroundColor: SURFACE_COLORS.main}}>
               {
                 map(VIEWS, (state, view) => {
