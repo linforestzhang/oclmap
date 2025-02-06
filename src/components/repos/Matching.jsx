@@ -1124,7 +1124,7 @@ const Matching = () => {
               size='small'
               sx={{textTransform: 'none', margin: '5px'}}
               endIcon={<DoubleArrowIcon />}
-              disabled={loadingMatches || matchedConcepts?.length > 0 || !file}
+              disabled={loadingMatches || !file}
               onClick={onGetCandidates}
             >
               {getCandidatesButtonLabel()}
