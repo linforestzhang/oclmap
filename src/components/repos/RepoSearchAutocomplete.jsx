@@ -110,7 +110,7 @@ const RepoSearchAutocomplete = ({onChange, label, id, required, minCharactersFor
       renderOption={
         (props, option) => (
           <React.Fragment key={option.url}>
-            <RepoListItem listItemProps={props} option={option} />
+            <RepoListItem listItemProps={props} option={option} repoChipProps={{noTooltip: true}} />
             <Divider component="li" style={{listStyle: 'none'}} />
           </React.Fragment>
         )
