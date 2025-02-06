@@ -613,7 +613,7 @@ const Matching = () => {
 
   const rowContent = (_index, _row) => {
     const isEditing = edit?.includes(_row.__index)
-    const bgColor = _row.__index === row.__index ? SURFACE_COLORS.main : WHITE
+    const bgColor = _row.__index === row.__index ? 'primary.90' : WHITE
     const defaultMatchTypeColor = 'rgba(0, 0, 0, 0.05)'
     const state = getStateFromIndex(_row.__index)
     return (
