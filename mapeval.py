@@ -85,6 +85,7 @@ list_of_chunked_data = [data[i * max_chunk_size:(i + 1) * max_chunk_size] for i 
 
 # Match and evaluate one chunk at a time
 num_correct_matches_in_top_n = 0
+num_auto_match = 0 # 'search_meta.match_type=very_high'
 num_excluded = 0
 num_new_concept_proposed = 0
 chunk_num = 0
@@ -115,9 +116,11 @@ for chunk in list_of_chunked_data:
         elif str(match_set["row"][correct_map_column_name]).lower() == "new":
             num_new_concept_proposed += 1
         else:
-            matched_candidate = next((candidate for candidate in match_set["results"] if str(int(match_set["row"][correct_map_column_name])) == str(int(candidate["id"]))), None)
+            matched_candidate = next((candidate for candidate in match_set["results"] if str(match_set["row"][correct_map_column_name]) == str(candidate["id"])), None)
             if matched_candidate:
                 print(str(matched_candidate["id"]), " ", sep="", end="")
+                if matched_candidate['search_meta']['match_type'] == 'very_high':
+                    num_auto_match += 1
                 num_correct_matches_in_top_n += 1
                 chunk_match_count += 1
             else:
@@ -128,11 +131,14 @@ for chunk in list_of_chunked_data:
 # Report results
 print("\nRESULTS:")
 print("  total_rows:", len(df))
+print("  num_auto_matches: ", num_auto_match)
 print("  num_correct_matches_in_top_n: ", num_correct_matches_in_top_n)
 print("  num_excluded_rows: ", num_excluded)
 print("  num_new_concept_proposed: ", num_new_concept_proposed)
 print("  num_to_match: ", len(df) - num_new_concept_proposed - num_excluded)
+print("  num_auto_matches / num_to_match: ", round((num_auto_match / (len(df) - num_new_concept_proposed - num_excluded)), 2))
 print("  num_correct_matches_in_top_n / num_to_match: ", round((num_correct_matches_in_top_n / (len(df) - num_new_concept_proposed - num_excluded)), 2))
+print("  num_auto_matches / total_rows: ", round((num_auto_match / len(df)), 2))
 print("  num_correct_matches_in_top_n / total_rows: ", round((num_correct_matches_in_top_n / len(df)), 2))
 print("  Elapsed Seconds:", time.time() - start_time)
 if args.verbose in ['true', '1']:
