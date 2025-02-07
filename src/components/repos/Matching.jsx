@@ -705,7 +705,7 @@ const Matching = () => {
 
 
   const getRowsResults = async (rows) => {
-    const CHUNK_SIZE = 50; // Number of rows per batch
+    const CHUNK_SIZE = algo === 'llm' ? 10 : 50; // Number of rows per batch
     const MAX_CONCURRENT_REQUESTS = 2; // Number of parallel API requests allowed
     if(autoMatchUnmappedOnly)
       rows = filter(rows, row => rowStatuses.unmapped.includes(row.__index))
