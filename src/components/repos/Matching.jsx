@@ -163,7 +163,7 @@ const MATCH_TYPES = {
   },
 }
 
-const DECISION_TABS = ['map_and_review', 'candidates', 'propose']
+const DECISION_TABS = ['map_and_review', 'candidates', 'propose', 'search']
 const UPDATED_COLOR = ERROR_COLORS['95']
 const SearchField = ({onChange}) => {
   const [input, setInput] = React.useState('')
@@ -427,12 +427,14 @@ const Matching = () => {
   const [matchTypes, setMatchTypes] = React.useState({very_high: 0, high: 0, low: 0, no_match: 0})
   const [matchedConcepts, setMatchedConcepts] = React.useState([]);
   const [otherMatchedConcepts, setOtherMatchedConcepts] = React.useState([]);
+  const [searchedConcepts, setSearchedConcepts] = React.useState({});
   const [algo, setAlgo] = React.useState('es')
   const [notes, setNotes] = React.useState({})
   const [proposed, setProposed] = React.useState({})
   const [mapSelected, setMapSelected] = React.useState({})
   const [startMatchingAt, setStartMatchingAt] = React.useState(false)
   const [endMatchingAt, setEndMatchingAt] = React.useState(false)
+  const [searchStr, setSearchStr] = React.useState('') // concept search
 
   const [row, setRow] = React.useState(false)
   const [loadingMatches, setLoadingMatches] = React.useState(false)
@@ -443,7 +445,7 @@ const Matching = () => {
   const [decisionTab, setDecisionTab] = React.useState('map_and_review')
   const [algoMenuAnchorEl, setAlgoMenuAnchorEl] = React.useState(null)
   const [decisionAnchorEl, setDecisionAnchorEl] = React.useState(null)
-  const [searchText, setSearchText] = React.useState('')
+  const [searchText, setSearchText] = React.useState('')  // csv row search
   const [attributes, setAttributes] = React.useState(1)
 
   const [matchDialog, setMatchDialog] = React.useState(false)
@@ -461,6 +463,20 @@ const Matching = () => {
     {id: 'es', label: 'Generic Elastic Search Matching'},
     {id: 'llm', label: 'Semantic Search (all-MiniLM-L6-v2)', disabled: !toggles?.SEMANTIC_SEARCH_TOGGLE},
   ]
+
+
+  React.useEffect(() => {
+    window.addEventListener("beforeunload", alertUser);
+    return () => {
+      window.removeEventListener("beforeunload", alertUser);
+    };
+  }, []);
+
+
+  const alertUser = (e) => {
+    e.preventDefault();
+    e.returnValue = "";
+  };
 
   const rowIndex = row?.__index
 
@@ -979,6 +995,7 @@ const Matching = () => {
   const onCloseDecisions = () => {
     setRow(false)
     setShowHighlights(false)
+    setSearchStr('')
   }
 
   const onMap = (event, concept, unmap=false) => {
@@ -1010,6 +1027,8 @@ const Matching = () => {
     setRowStatuses(newRowStatuses)
     updateMatchTypeCounts('reviewed', newRowStatuses)
   }
+
+  const getConceptLabel = concept => `${concept.repo.short_code}:${concept.repo.version || concept.repo.id}:${concept.id} ${concept.display_name}`
 
   const isSelectedForMap = (concept, index) => mapSelected[index || rowIndex]?.url == concept.url
 
@@ -1043,17 +1062,25 @@ const Matching = () => {
   }
 
   const onDecisionChange = (event, newValue) => {
+    if(newValue === 'rejected') {
+      const selected = mapSelected[rowIndex]
+      if(selected?.id) {
+        let comment = `Rejected ${getConceptLabel(selected)}`
+        if(notes[rowIndex])
+          comment += '\n' + comment
+        setNotes({...notes, [rowIndex]: comment})
+      }
+    }
     if(newValue !== 'map')
       _onMap(null, true)
     if(newValue != 'propose')
       setProposed(prev => ({...prev, [rowIndex]: undefined}))
 
-
     setDecisions(prev => ({...prev, [rowIndex]: newValue || undefined}))
 
     setRowStatuses(prev => {
       prev.reviewed = without(prev.reviewed, rowIndex)
-      if(newValue) { // map or exclude or propose
+      if(newValue && newValue !== 'rejected') { // map or exclude or propose
         prev.readyForReview = uniq([...prev.readyForReview, rowIndex])
         prev.unmapped = without(prev.unmapped, rowIndex)
       } else {
@@ -1086,6 +1113,24 @@ const Matching = () => {
             setTimeout(() => highlightTexts(items, null, false), 100)
         });
   }
+
+  const searchCandidates = () => {
+    APIService.new().overrideURL(repoVersion.version_url).appendToUrl('concepts/').get(null, null, {
+      includeSearchMeta: true,
+      includeMappings: true,
+      mappingBrief: true,
+      mapTypes: 'SAME-AS,SAME AS,SAME_AS',
+      verbose: true,
+      limit: 5,
+      q: searchStr
+    }).then(response => {
+      let items = response.data
+      setSearchedConcepts({...searchedConcepts, [row.__index]: items})
+      if(items.length > 0)
+        setTimeout(() => highlightTexts(items, null, false), 100)
+    });
+  }
+
 
   const isSplitView = Boolean(rowIndex !== undefined)
   const rows = getRows()
@@ -1391,113 +1436,6 @@ const Matching = () => {
                 </div>
           }
           {
-            decisionTab === 'candidates' && isSplitView &&
-              <div className='col-xs-12 padding-0' style={{margin: '12px 0'}}>
-                <div className='col-xs-12 padding-0' style={{display: 'flex', alignItems: 'center', margin: '16px 0'}}>
-                  <Button
-                    component="label"
-                    role={undefined}
-                    variant="outlined"
-                    tabIndex={-1}
-                    sx={{textTransform: 'none', margin: '0 10px 0 0px', padding: '6.5px 15px', minWidth: '315px'}}
-                    startIcon={<MatchingIcon />}
-                    endIcon={<DownIcon />}
-                    onClick={onAlgoButtonClick}
-                  >
-                    {ALGOS.find(_algo => _algo.id === algo).label}
-                  </Button>
-                  <RepoSearchAutocomplete label='Map Target' size='small' onChange={(id, item) => onRepoChange(item)} value={repo} />
-                  <RepoVersionSearchAutocomplete versions={versions} label='Version' size='small' onChange={(id, item) => setRepoVersion(item)} value={repoVersion} sx={{marginLeft: '10px'}} />
-                  <Button
-                    color='primary'
-                    variant="contained"
-                    sx={{textTransform: 'none', marginLeft: '10px'}}
-                    disabled={!repo?.id}
-                    onClick={fetchOtherCandidates}
-                  >
-                    Fetch
-                  </Button>
-                </div>
-                <div className='col-xs-12 padding-0' style={{display: 'flex', alignItems: 'center'}}>
-                  <SearchResults
-                    id={rowIndex}
-                    resultSize='small'
-                    sx={{
-                      borderRadius: '10px 10px 0 0',
-                      '.MuiTableCell-root': {
-                        padding: '6px !important',
-                        verticalAlign: 'baseline',
-                      },
-                      '.MuiTableCell-head': {
-                        padding: '2px 6px !important',
-                        whiteSpace: 'normal'
-                      },
-                      '.MuiToolbar-root': {
-                        borderRadius: '10px 10px 0 0',
-                      }
-                    }}
-                    noCardDisplay
-                    nested
-                    results={{
-                      results: orderBy(find(otherMatchedConcepts, c => c.row.__index === rowIndex )?.results || [], 'search_meta.search_score', 'desc'),
-                      total: 1
-                    }}
-                    resource='concepts'
-                    noPagination
-                    noSorting
-                    noToolbar
-                    resultContainerStyle={{height: decisionTab === 'candidates' ? (showItem ? '200px' : 'calc(100vh - 200px)') : 'auto'}}
-                    onShowItemSelect={item => {
-                      setShowItem(item)
-                      setTimeout(() => {
-                        highlightTexts([item], null, false)
-                      }, 100)
-                    }}
-                    selectedToShow={showItem}
-                    extraColumns={[
-                      {
-                        sortable: false,
-                        id: 'mappings',
-                        labelKey: 'mapping.same_as_mappings',
-                        renderer: formatMappings,
-                      },
-                      {
-                        sortable: false,
-                        id: 'search_meta.search_score',
-                        labelKey: 'search.score',
-                        renderer: (concept) => {
-                          return <Chip
-                                   size='small'
-                                   {...MATCH_TYPES[concept?.search_meta?.match_type || 'no_match']}
-                                   label={`${parseFloat(concept?.search_meta?.search_score || 0).toFixed(2)}`}
-                                   onClick={event => {
-                                     event.preventDefault()
-                                     event.stopPropagation()
-                                     setShowHighlights(concept)
-                                     return false
-                                   }}
-                                   disabled={!concept?.search_meta?.search_score}
-                                 />
-                        },
-                      },
-                      {
-                        sortable: false,
-                        id: 'map-control',
-                        labelKey: '',
-                        renderer: concept => {
-                          const isMapped = isSelectedForMap(concept)
-                          return (
-                          <Button size='small' sx={{textTransform: 'none', whiteSpace: 'nowrap'}} color={isMapped ? 'error' : 'primary'} variant={isMapped ? 'outlined' : 'contained'} onClick={event => onMap(event, concept, isMapped)}>
-                            {isMapped ? 'Un-Map' : 'Map'}
-                          </Button>
-                        )},
-                      },
-                    ]}
-                  />
-                </div>
-              </div>
-          }
-          {
             decisionTab === 'map_and_review' && isSplitView &&
               <div className='col-xs-12' style={{padding: '8px'}}>
                 <div className='col-xs-12 padding-0' style={{margin: '12px 0 8px', display: 'flex', alignItems: 'center'}}>
@@ -1608,12 +1546,204 @@ const Matching = () => {
                   />
                 </div>
                 <div className='col-xs-12 padding-0' style={{margin: '16px 0', display: 'flex', alignItems: 'center'}}>
-                  <Button disabled={rowStatuses.reviewed.includes(rowIndex)} color='primary' onClick={() => onReviewDone()} variant='contained' sx={{textTransform: 'none'}}>
+                  <Button disabled={rowStatuses.reviewed.includes(rowIndex)} color='primary' onClick={onReviewDone} variant='contained' sx={{textTransform: 'none'}}>
                     Approve
                   </Button>
-                  <Button color='default' onClick={onCloseDecisions} variant='contained' sx={{textTransform: 'none', marginLeft: '16px'}}>
-                    Close
+                  <Button color='error' onClick={(event) => onDecisionChange(event, 'rejected')} variant='contained' sx={{textTransform: 'none', marginLeft: '16px'}}>
+                    Reject
                   </Button>
+                </div>
+              </div>
+          }
+                    {
+            decisionTab === 'candidates' && isSplitView &&
+              <div className='col-xs-12 padding-0' style={{margin: '12px 0'}}>
+                <div className='col-xs-12 padding-0' style={{display: 'flex', alignItems: 'center', margin: '16px 0'}}>
+                  <Button
+                    component="label"
+                    role={undefined}
+                    variant="outlined"
+                    tabIndex={-1}
+                    sx={{textTransform: 'none', margin: '0 10px 0 0px', padding: '6.5px 15px', minWidth: '315px'}}
+                    startIcon={<MatchingIcon />}
+                    endIcon={<DownIcon />}
+                    onClick={onAlgoButtonClick}
+                  >
+                    {ALGOS.find(_algo => _algo.id === algo).label}
+                  </Button>
+                  <RepoSearchAutocomplete label='Map Target' size='small' onChange={(id, item) => onRepoChange(item)} value={repo} />
+                  <RepoVersionSearchAutocomplete versions={versions} label='Version' size='small' onChange={(id, item) => setRepoVersion(item)} value={repoVersion} sx={{marginLeft: '10px'}} />
+                  <Button
+                    color='primary'
+                    variant="contained"
+                    sx={{textTransform: 'none', marginLeft: '10px'}}
+                    disabled={!repo?.id}
+                    onClick={fetchOtherCandidates}
+                  >
+                    Fetch
+                  </Button>
+                </div>
+                <div className='col-xs-12 padding-0' style={{display: 'flex', alignItems: 'center'}}>
+                  <SearchResults
+                    id={rowIndex}
+                    resultSize='small'
+                    sx={{
+                      borderRadius: '10px 10px 0 0',
+                      '.MuiTableCell-root': {
+                        padding: '6px !important',
+                        verticalAlign: 'baseline',
+                      },
+                      '.MuiTableCell-head': {
+                        padding: '2px 6px !important',
+                        whiteSpace: 'normal'
+                      },
+                      '.MuiToolbar-root': {
+                        borderRadius: '10px 10px 0 0',
+                      }
+                    }}
+                    noCardDisplay
+                    nested
+                    results={{
+                      results: orderBy(find(otherMatchedConcepts, c => c.row.__index === rowIndex )?.results || [], 'search_meta.search_score', 'desc'),
+                      total: 1
+                    }}
+                    resource='concepts'
+                    noPagination
+                    noSorting
+                    noToolbar
+                    resultContainerStyle={{height: decisionTab === 'candidates' ? (showItem ? '200px' : 'calc(100vh - 200px)') : 'auto'}}
+                    onShowItemSelect={item => {
+                      setShowItem(item)
+                      setTimeout(() => {
+                        highlightTexts([item], null, false)
+                      }, 100)
+                    }}
+                    selectedToShow={showItem}
+                    extraColumns={[
+                      {
+                        sortable: false,
+                        id: 'mappings',
+                        labelKey: 'mapping.same_as_mappings',
+                        renderer: formatMappings,
+                      },
+                      {
+                        sortable: false,
+                        id: 'search_meta.search_score',
+                        labelKey: 'search.score',
+                        renderer: (concept) => {
+                          return <Chip
+                                   size='small'
+                                   {...MATCH_TYPES[concept?.search_meta?.match_type || 'no_match']}
+                                   label={`${parseFloat(concept?.search_meta?.search_score || 0).toFixed(2)}`}
+                                   onClick={event => {
+                                     event.preventDefault()
+                                     event.stopPropagation()
+                                     setShowHighlights(concept)
+                                     return false
+                                   }}
+                                   disabled={!concept?.search_meta?.search_score}
+                                 />
+                        },
+                      },
+                      {
+                        sortable: false,
+                        id: 'map-control',
+                        labelKey: '',
+                        renderer: concept => {
+                          const isMapped = isSelectedForMap(concept)
+                          return (
+                          <Button size='small' sx={{textTransform: 'none', whiteSpace: 'nowrap'}} color={isMapped ? 'error' : 'primary'} variant={isMapped ? 'outlined' : 'contained'} onClick={event => onMap(event, concept, isMapped)}>
+                            {isMapped ? 'Un-Map' : 'Map'}
+                          </Button>
+                        )},
+                      },
+                    ]}
+                  />
+                </div>
+              </div>
+          }
+          {
+            decisionTab === 'search' && isSplitView &&
+              <div className='col-xs-12 padding-0' style={{margin: '12px 0'}}>
+                <div className='col-xs-12 padding-0' style={{display: 'flex', alignItems: 'center', margin: '16px 0'}}>
+                  <RepoSearchAutocomplete label='Map Target' size='small' onChange={(id, item) => onRepoChange(item)} value={repo} />
+                  <RepoVersionSearchAutocomplete versions={versions} label='Version' size='small' onChange={(id, item) => setRepoVersion(item)} value={repoVersion} sx={{marginLeft: '10px'}} />
+                  <TextField
+                    label='Search'
+                    sx={{minWidth: '200px', maxWidth: '300px', marginLeft: '10px'}}
+                    required
+                    id="search"
+                    value={searchStr}
+                    onChange={event => setSearchStr(event.target.value || '')}
+                    size='small'
+                  />
+                  <Button
+                    color='primary'
+                    variant="contained"
+                    sx={{textTransform: 'none', marginLeft: '10px'}}
+                    disabled={!repo?.id || !repoVersion?.id || !searchStr}
+                    onClick={searchCandidates}
+                  >
+                    Search
+                  </Button>
+                </div>
+                <div className='col-xs-12 padding-0' style={{display: 'flex', alignItems: 'center'}}>
+                  <SearchResults
+                    id={rowIndex}
+                    resultSize='small'
+                    sx={{
+                      borderRadius: '10px 10px 0 0',
+                      '.MuiTableCell-root': {
+                        padding: '6px !important',
+                        verticalAlign: 'baseline',
+                      },
+                      '.MuiTableCell-head': {
+                        padding: '2px 6px !important',
+                        whiteSpace: 'normal'
+                      },
+                      '.MuiToolbar-root': {
+                        borderRadius: '10px 10px 0 0',
+                      }
+                    }}
+                    noCardDisplay
+                    nested
+                    results={{
+                      results: orderBy(searchedConcepts[rowIndex] || [], 'search_meta.search_score', 'desc'),
+                      total: searchedConcepts[rowIndex]?.length
+                    }}
+                    resource='concepts'
+                    noPagination
+                    noSorting
+                    noToolbar
+                    resultContainerStyle={{height: decisionTab === 'search' ? (showItem ? '200px' : 'calc(100vh - 200px)') : 'auto'}}
+                    onShowItemSelect={item => {
+                      setShowItem(item)
+                      setTimeout(() => {
+                        highlightTexts([item], null, false)
+                      }, 100)
+                    }}
+                    selectedToShow={showItem}
+                    extraColumns={[
+                      {
+                        sortable: false,
+                        id: 'mappings',
+                        labelKey: 'mapping.same_as_mappings',
+                        renderer: formatMappings,
+                      },
+                      {
+                        sortable: false,
+                        id: 'map-control',
+                        labelKey: '',
+                        renderer: concept => {
+                          const isMapped = isSelectedForMap(concept)
+                          return (
+                          <Button size='small' sx={{textTransform: 'none', whiteSpace: 'nowrap'}} color={isMapped ? 'error' : 'primary'} variant={isMapped ? 'outlined' : 'contained'} onClick={event => onMap(event, concept, isMapped)}>
+                            {isMapped ? 'Un-Map' : 'Map'}
+                          </Button>
+                        )},
+                      },
+                    ]}
+                  />
                 </div>
               </div>
           }
@@ -1624,7 +1754,7 @@ const Matching = () => {
           highlight={showHighlights?.search_meta?.search_highlight || []}
           score={parseFloat(showHighlights?.search_meta?.search_score || 0).toFixed(2)}
         />
-        <div className={'col-xs-12 padding-0' + (showItem?.id ? ' split-appear' : '')} style={{width: showItem?.id ? '100%' : 0, backgroundColor: WHITE, borderRadius: '10px', height: showItem?.id ? 'calc(100vh - 420px)' : 0, opacity: showItem?.id ? 1 : 0}}>
+        <div className={'col-xs-12 padding-0' + (showItem?.id ? ' split-appear' : '')} style={{width: showItem?.id ? '100%' : 0, backgroundColor: WHITE, borderRadius: '10px', height: showItem?.id ? 'calc(100vh - 420px)' : 0, opacity: showItem?.id ? 1 : 0, overflow: showItem?.id ? 'auto' : 'hidden'}}>
           {
             showItem?.id &&
               <ConceptHome

@@ -240,7 +240,8 @@
           "unmapped",
           "unmap",
           "mins",
-          "Hmmss"
+          "Hmmss",
+          "beforeunload"
         ],
         "skipIfMatch": [
           "http://[^s]*",
