@@ -466,11 +466,13 @@ const Matching = () => {
 
 
   React.useEffect(() => {
-    window.addEventListener("beforeunload", alertUser);
-    return () => {
-      window.removeEventListener("beforeunload", alertUser);
-    };
-  }, []);
+    if(!isEmpty(decisions)) {
+      window.addEventListener("beforeunload", alertUser);
+      return () => {
+        window.removeEventListener("beforeunload", alertUser);
+      };
+    }
+  }, [decisions]);
 
 
   const alertUser = (e) => {
