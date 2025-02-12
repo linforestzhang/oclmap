@@ -1264,6 +1264,29 @@ const Matching = () => {
                   label={`Auto Match (${(matchTypes.very_high || 0).toLocaleString()})`}
                 />
                 {
+                  selectedRowStatus === 'unmapped' &&
+                    <Chip
+                      label={`Rejected (${keys(pickBy(decisions, value => value === 'rejected')).length})`}
+                      color='error'
+                      size='small'
+                      variant={decisionFilters.includes('rejected') ? 'contained' : 'outlined'}
+                      icon={
+                        decisionFilters.includes('rejected') ?
+                          <CloseIcon fontSize='inherit' /> :
+                          <DoneIcon fontSize='inherit' />
+                      }
+                      onClick={
+                        () => setDecisionFilters(
+                          decisionFilters.includes('rejected') ?
+                            without(decisionFilters, 'rejected') :
+                            [...decisionFilters, 'rejected']
+                        )
+                      }
+                      sx={{marginLeft: '10px'}}
+                    />
+
+                }
+                {
                   ['reviewed', 'readyForReview'].includes(selectedRowStatus) &&
                     <React.Fragment>
                       {
