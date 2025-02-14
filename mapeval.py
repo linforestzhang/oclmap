@@ -289,6 +289,8 @@ for result in mapeval_results:
     for i, value in enumerate(result["num_correct_matches_in_top_n"]):
         result_summary[f"top_{i+1}"] = value
     for key in result["args"].keys():
+        if key in ["key", "token"]:
+            continue
         result_summary[f"args_{key}"] = result["args"][key]
     overall_summary.append(result_summary)
 if args.verbosity >= 2:
