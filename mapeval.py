@@ -5,14 +5,14 @@ Planned: auto-match is correct
 '''
 import argparse
 import time
+from datetime import datetime
 import json
 import requests
 import pandas as pd
 
-
-def mapeval(api_token="", api_match_url="", input_filename="", target_repo="", correct_map_column_name="",
-            column_map={}, semantic=False, max_chunk_size=200, knn_num_candidates=1000, top_n_threshold=5,
-            verbosity=0, output_filename=""):
+def mapeval(key="", api_token="", api_match_url="", input_filename="", target_repo="",
+            correct_map_column_name="", column_map={}, semantic=False, max_chunk_size=200,
+            knn_num_candidates=1000, top_n_threshold=5, verbosity=0):
     start_time = time.time()
 
     # CONSTANTS
@@ -33,11 +33,11 @@ def mapeval(api_token="", api_match_url="", input_filename="", target_repo="", c
     # Print script configuration
     if verbosity:
         print("\nCONFIGURATION:")
+        print("  Key: ", key)
         print("  Matching API endpoint: ", api_match_url)
         if api_token:
             print("  API token: *******")
         print("  Input Filename: ", input_filename)
-        print("  Output Filename: ", output_filename)
         print("  Target Repository: ", target_repo)
         print("  Correct Map Concept ID Column Name: ", correct_map_column_name)
         print("  Semantic Search: ", semantic)
@@ -76,6 +76,7 @@ def mapeval(api_token="", api_match_url="", input_filename="", target_repo="", c
     unmatched = []
     row_num = 0
     row_results = []
+    cumulative_chunk_elapsed_time = 0
     print("\nMATCHING:")
     for chunk in list_of_chunked_data:
         chunk_match_count = 0
@@ -93,9 +94,17 @@ def mapeval(api_token="", api_match_url="", input_filename="", target_repo="", c
             "target_repo_url": target_repo
         }
         if verbosity:
-            print("\n  Chunk #: ", chunk_num, ' Chunk len:', len(new_chunk), api_match_url, json.dumps(params))
+            print(f"Chunk #: {chunk_num} ({len(new_chunk)} rows)")
+            print(f"  {api_match_url} {json.dumps(params)}")
+        chunk_start_time = time.time()
         r = requests.post(api_match_url, json=payload, params=params, headers=headers)
+        chunk_elapsed_time = time.time() - chunk_start_time
+        cumulative_chunk_elapsed_time += chunk_elapsed_time
+        chunk_average_time_per_row = chunk_elapsed_time / len(new_chunk)
         response = r.json()
+        if verbosity:
+            print ("  Chunk Match Time: ", round(chunk_elapsed_time, 2), " (", round(chunk_average_time_per_row, 2), "sec/row )")
+            pass
 
         # Evaluate the results one row_matches at a time
         for row_matches in response:
@@ -130,17 +139,23 @@ def mapeval(api_token="", api_match_url="", input_filename="", target_repo="", c
             # Store candidate scores for analytics
             row_results.append(candidate_scores.copy())
 
-        print("  Chunk Match Count: ", f"{chunk_match_count} ({round((chunk_match_count/len(new_chunk)) * 100, 2)}%)")
+        print("  Chunk Match Count: ", f"{chunk_match_count} out of {len(new_chunk)}  ({round((chunk_match_count/len(new_chunk)) * 100, 2)}%)")
 
     # Results
     elapsed_seconds = time.time() - start_time
+    chunk_average_time_per_row = cumulative_chunk_elapsed_time / len(df)
     results = {
+        "key": key,
+        "timestamp": datetime.now().isoformat(),
         "total_rows": len(df),
         "num_auto_matches": num_auto_match,
         "num_correct_matches_in_top_n": num_correct_matches_in_top_n,
         "num_excluded_rows": num_excluded,
         "num_new_concept_proposed": num_new_concept_proposed,
-        "elapsed_seconds": elapsed_seconds,
+        "total_elapsed_seconds": elapsed_seconds,
+        "total_match_seconds": cumulative_chunk_elapsed_time,
+        "total_processing_seconds": elapsed_seconds - cumulative_chunk_elapsed_time,
+        "average_match_seconds_per_row": chunk_average_time_per_row,
         "row_candidate_scores": row_results
     }
 
@@ -155,58 +170,143 @@ def mapeval(api_token="", api_match_url="", input_filename="", target_repo="", c
         print("\n  num_excluded_rows: ", num_excluded)
         print("  num_new_concept_proposed: ", num_new_concept_proposed)
         print("  num_to_match: ", len(df) - num_new_concept_proposed - num_excluded)
-        print("  Elapsed Seconds:", elapsed_seconds)
+        print(f"  Total Elapsed Seconds: {round(elapsed_seconds, 2)} sec")
+        print(f"  Total Match Seconds: {round(cumulative_chunk_elapsed_time,2)} sec")
+        print(f"  Total Processing Seconds: {round(results["total_processing_seconds"],2)} sec")
+        print(f"  Average Match Seconds per Row: {round(chunk_average_time_per_row, 2)} sec/row")
 
     # Print unmatched rows
     if verbosity >= 2:
         print("\n\nUnmatched:", len(unmatched))
-        from pprint import pprint
-        pprint(unmatched)
+        print(json.dumps(unmatched, indent=4))
 
     return results
 
 
 # CLI
 parser = argparse.ArgumentParser(prog='mapeval.py', description='Evaluate the performance of a matching algorithm')
+parser.add_argument('-k', '--key', help="Key to identify the run")
 parser.add_argument('-t', '--token', required=True, help="OCL API token")
-parser.add_argument('-i', '--inputfile', required=True, help="File of input data to be mapped")
-parser.add_argument('-r', '--repo', required=False, help="Map target repo, e.g. /orgs/CIEL/sources/CIEL/v2024-10-04/", default="/orgs/CIEL/sources/CIEL/v2024-10-04/")
+parser.add_argument('-i', '--inputfile', help="File of input data to be mapped")
+parser.add_argument('-r', '--repo', help="Map target repo, e.g. /orgs/CIEL/sources/CIEL/v2024-10-04/", default="/orgs/CIEL/sources/CIEL/v2024-10-04/")
 parser.add_argument('-e', '--env', default="http://localhost:8000", help="OCL API environment, e.g. https://api.qa.openconceptlab.org")
 parser.add_argument('--endpoint', default="/concepts/$match/", help="$match endpoint, e.g. /concepts/$match/")
 parser.add_argument('--correctmap', default="correct_map_concept_id", help="Column name of the correct map")
 parser.add_argument('--columnmap_filename', help="JSON file containing column mappings")
-parser.add_argument('-s', '--semantic', default='false', choices=['true', 'false'])
-parser.add_argument('-c', '--chunk', default=200, help="Max chunk size to send to $match algorithm at a time")
-parser.add_argument('--numcandidates', default=5000, help="Approximate number of nearest neighbor candidates to consider on each shard")
-parser.add_argument('-n', '--topn', default=5, help="Number of results to consider for top-n test")
-parser.add_argument('-v', '--verbosity', default="0")
-parser.add_argument('-o', '--output', help="Analytics output file to write the results")
+parser.add_argument('-s', '--semantic', type=bool, default='false', choices=['true', 'false'])
+parser.add_argument('-c', '--chunk', type=int, default=200, help="Max chunk size to send to $match algorithm at a time")
+parser.add_argument('--numcandidates', type=int, default=5000, help="Approximate number of nearest neighbor candidates to consider on each shard")
+parser.add_argument('-n', '--topn', type=int, default=5, help="Number of results to consider for top-n test")
+parser.add_argument('-v', '--verbosity', type=int, default=0)
+parser.add_argument('-o', '--outputfile', help="Analytics output file to write the results")
+parser.add_argument('--csv', help="CSV file with rows of mapeval parameters")
+parser.add_argument('--summaryfile', help="Summary output CSV file")
 args = parser.parse_args()
 
-# Convert columnmap_filename argument to dictionary, if provided
-column_map = {}
-if args.columnmap_filename:
-    with open(args.columnmap_filename, 'r') as f:
-        column_map = json.load(f)
 
-# Call the mapeval method with parsed arguments
-api_match_url = args.env + args.endpoint
-run_results = mapeval(
-    api_token=args.token,
-    api_match_url=api_match_url,
-    input_filename=args.inputfile,
-    target_repo=args.repo,
-    correct_map_column_name=args.correctmap,
-    column_map=column_map,
-    semantic=args.semantic in ['true', '1'],
-    max_chunk_size=int(args.chunk),
-    knn_num_candidates=int(args.numcandidates),
-    top_n_threshold=int(args.topn),
-    verbosity=int(args.verbosity)
-)
+# Function to run mapeval with given arguments
+def run_mapeval_with_args(args):
+    # Convert columnmap_filename argument to dictionary, if provided
+    column_map = {}
+    if args.columnmap_filename:
+        with open(args.columnmap_filename, 'r') as f:
+            column_map = json.load(f)
 
-# Write analytics output file
-output_filename = args.output
-if output_filename:
-    with open(output_filename, 'w') as f:
-        f.write(json.dumps(run_results, indent=4))
+    # Run mapeval
+    api_match_url = args.env + args.endpoint
+    run_results = mapeval(
+        key=args.key,
+        api_token=args.token,
+        api_match_url=api_match_url,
+        input_filename=args.inputfile,
+        target_repo=args.repo,
+        correct_map_column_name=args.correctmap,
+        column_map=column_map,
+        semantic=args.semantic in ['true', '1'],
+        max_chunk_size=int(args.chunk),
+        knn_num_candidates=int(args.numcandidates),
+        top_n_threshold=int(args.topn),
+        verbosity=int(args.verbosity)
+    )
+
+    run_results["args"] = vars(args)
+    return run_results
+
+
+# Run mapeval for each CSV row or just a single set of CLI arguments
+mapeval_results = []
+if args.csv:
+    verbosity = int(args.verbosity)
+    csv_df = pd.read_csv(args.csv)
+    csv_row_number = 0
+    if verbosity:
+        print(f"\nCSV mode: {args.csv}")
+    for index, row in csv_df.iterrows():
+        csv_row_number += 1
+
+        # Skip row if 'skip' is set to True in the CSV
+        if row.get('skip', False):
+            if verbosity:
+                print(f"\ncsv-row[{csv_row_number}]:{row.get('key', "")}  SKIPPED")
+            continue
+
+        # Set arguments for the current row
+        row_args = argparse.Namespace(
+            key=row.get('key', f"mapeval_{csv_row_number}"),
+            token=row.get('token', args.token),
+            inputfile=row.get('inputfile', args.inputfile),
+            repo=row.get('repo', args.repo),
+            env=row.get('env', args.env),
+            endpoint=row.get('endpoint', args.endpoint),
+            correctmap=row.get('correctmap', args.correctmap),
+            columnmap_filename=row.get('columnmap_filename', args.columnmap_filename),
+            semantic=row.get('semantic', args.semantic),
+            chunk=row.get('chunk', args.chunk),
+            numcandidates=row.get('numcandidates', args.numcandidates),
+            topn=row.get('topn', args.topn),
+            verbosity=verbosity
+        )
+
+        # Run mapeval with the current row arguments
+        if verbosity:
+            print(f"\ncsv-row[{csv_row_number}]:{row.get('key', "")}")
+        mapeval_results.append(run_mapeval_with_args(row_args))
+else:
+    if not args.get("key"):
+        args.key = "mapeval"
+    mapeval_results.append(run_mapeval_with_args(args))
+
+# Generate summary results of the entire run e.g. {"summary": [...], "results": [...]}
+overall_summary = []
+for result in mapeval_results:
+    result_summary = {}
+    for key in result.keys():
+        if key in ["args", "row_candidate_scores", "num_correct_matches_in_top_n"]:
+            continue
+        elif isinstance(result[key], list) or isinstance(result[key], dict):
+            continue
+        result_summary[key] = result[key]
+    for key in result["args"].keys():
+        result_summary[f"args_{key}"] = result["args"]["key"]
+    for i, value in enumerate(result["num_correct_matches_in_top_n"]):
+        result_summary[f"top_{i+1}"] = value
+    overall_summary.append(result_summary)
+if args.verbosity >= 2:
+    print("\nOVERALL SUMMARY:")
+    print(json.dumps(overall_summary, indent=4))
+
+# Write summary output file as CSV (if specified)
+if args.summaryfile:
+    summary_df = pd.DataFrame(overall_summary)
+    summary_df.to_csv(args.summaryfile, index=False)
+
+# Write analytics output file (of the entire run)
+final_output = {"summary": overall_summary, "results": mapeval_results}
+if args.outputfile:
+    with open(args.outputfile, 'w') as f:
+        f.write(json.dumps(final_output, indent=4))
+
+# Print results of the entire run
+if args.verbosity >= 2:
+    print("\nFINAL RESULTS:")
+    print(json.dumps(mapeval_results, indent=4))
