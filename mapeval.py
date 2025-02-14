@@ -201,8 +201,8 @@ def mapeval(key="", api_token="", api_match_url="", input_filename="", target_re
         print(f"  Average Match Seconds per Row: {round(chunk_average_time_per_row, 2)} sec/row")
 
     # Print unmatched rows
-    if verbosity >= 2:
-        print("\n\nUnmatched:", len(unmatched))
+    if verbosity >= 3:
+        print("\n\nUNMATCHED:", len(unmatched))
         print(json.dumps(unmatched, indent=4))
 
     return results
@@ -297,7 +297,7 @@ if args.csv:
             print(f"\ncsv-row[{csv_row_number}]:{row.get('key', "")}")
         mapeval_results.append(run_mapeval_with_args(row_args))
 else:
-    if not args.get("key"):
+    if not hasattr(args, 'key') or not args.key:
         args.key = "mapeval"
     mapeval_results.append(run_mapeval_with_args(args))
 
