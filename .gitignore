@@ -308,3 +308,4 @@ src/stories/
 dist/
 .idea/
 .DS_Store
+output/*
