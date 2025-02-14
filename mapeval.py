@@ -43,7 +43,7 @@ def mapeval(key="", api_token="", api_match_url="", input_filename="", target_re
         print("  Semantic Search: ", semantic)
         print("  Top-n Threshold: ", top_n_threshold)
         print("  Max Chunk Size: ", max_chunk_size)
-        print("  Number of Candidates: ", knn_num_candidates)
+        print("  kNN Number of Candidates: ", knn_num_candidates)
         print("  Verbosity: ", verbosity)
         if column_map:
             print("  Column Mapping: ", json.dumps(column_map, indent=4))
@@ -193,7 +193,7 @@ parser.add_argument('-e', '--env', default="http://localhost:8000", help="OCL AP
 parser.add_argument('--endpoint', default="/concepts/$match/", help="$match endpoint, e.g. /concepts/$match/")
 parser.add_argument('--correctmap', default="correct_map_concept_id", help="Column name of the correct map")
 parser.add_argument('--columnmap_filename', help="JSON file containing column mappings")
-parser.add_argument('-s', '--semantic', type=bool, default='false', choices=['true', 'false'])
+parser.add_argument('-s', '--semantic', default='false', choices=['true', 'false'])
 parser.add_argument('-c', '--chunk', type=int, default=200, help="Max chunk size to send to $match algorithm at a time")
 parser.add_argument('--numcandidates', type=int, default=5000, help="Approximate number of nearest neighbor candidates to consider on each shard")
 parser.add_argument('-n', '--topn', type=int, default=5, help="Number of results to consider for top-n test")
@@ -222,7 +222,7 @@ def run_mapeval_with_args(args):
         target_repo=args.repo,
         correct_map_column_name=args.correctmap,
         column_map=column_map,
-        semantic=args.semantic in ['true', '1'],
+        semantic=args.semantic,
         max_chunk_size=int(args.chunk),
         knn_num_candidates=int(args.numcandidates),
         top_n_threshold=int(args.topn),
@@ -286,10 +286,10 @@ for result in mapeval_results:
         elif isinstance(result[key], list) or isinstance(result[key], dict):
             continue
         result_summary[key] = result[key]
-    for key in result["args"].keys():
-        result_summary[f"args_{key}"] = result["args"]["key"]
     for i, value in enumerate(result["num_correct_matches_in_top_n"]):
         result_summary[f"top_{i+1}"] = value
+    for key in result["args"].keys():
+        result_summary[f"args_{key}"] = result["args"][key]
     overall_summary.append(result_summary)
 if args.verbosity >= 2:
     print("\nOVERALL SUMMARY:")
