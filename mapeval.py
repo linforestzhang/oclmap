@@ -1,7 +1,32 @@
 '''
-Script to evaluate the performance of a matching algorithm.
+Script to evaluate the performance of a matching algorithm. Can run a single set of
+CLI arguments or a batch of CLI arguments by using the --csv argument. The script
+outputs the results and summary to console or files, as specified.
 Current metrics: top-n, elapsed time
 Planned: auto-match is correct
+
+Usage:
+1. Run mapeval with a single set of CLI arguments -- output everything to the console:
+python3 mapeval.py --key=mapeval01 -t=[your-token-here] -i=./samples/sample01.csv
+    -r=/orgs/CIEL/sources/CIEL/v2024-10-04/ --correctmap=correct_map_concept_id
+    -s=false -v=2
+
+2. Run mapeval with a single set of CLI arguments -- output results and summary to files
+python3 mapeval.py --key=mapeval01 -t=[your-token-here] -i=./samples/sample01.csv
+    -r=/orgs/CIEL/sources/CIEL/v2024-10-04/ --correctmap=correct_map_concept_id
+    -s=false -v=1 --outputfile=./output/sample01_output.json
+    --summaryfile=./output/sample01_output_summary.csv
+
+3. Run mapeval with semantic search enabled:
+python3 mapeval.py --key=mapeval01 -t=[your-token-here] -i=./samples/sample01.csv
+    -r=/orgs/CIEL/sources/CIEL/v2024-10-04/ --correctmap=correct_map_concept_id
+    --columnmap_filename=./samples/columnmap.json -s=true -v=1 --numcandidates=1000
+    --outputfile=./output/sample01_output.json --summaryfile=./output/sample01_output_summary.csv
+
+4. Batch run mapeval with a CSV file containing multiple sets of CLI arguments:
+python3 mapeval.py --csv=./samples/batch01.csv -t=[your-token-here]
+    -e=https://api.dev.openconceptlab.org --endpoint=/concepts/\$match/ -v=1
+    --outputfile=./output/batch01_output.json --summaryfile=./output/batch01_output_summary.csv
 '''
 import argparse
 import time
