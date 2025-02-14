@@ -1629,7 +1629,7 @@ const Matching = () => {
                     noCardDisplay
                     nested
                     results={{
-                      results: orderBy(find(otherMatchedConcepts, c => c.row.__index === rowIndex )?.results || [], 'search_meta.search_score', 'desc'),
+                      results: find(otherMatchedConcepts, c => c.row.__index === rowIndex )?.results || [],
                       total: 1
                     }}
                     resource='concepts'
