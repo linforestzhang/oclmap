@@ -305,18 +305,26 @@ else:
 overall_summary = []
 for result in mapeval_results:
     result_summary = {}
+    result_summary["key"] = result.get("key", "")
+    result_summary["total_rows"] = result.get("total_rows", 0)
+    for i, value in enumerate(result["num_correct_matches_in_top_n"]):
+        result_summary[f"top_{i+1}"] = value
+    result_summary["num_auto_matches"] = result.get("num_auto_matches", 0)
+    result_summary["total_elapsed_seconds"] = result.get("total_elapsed_seconds", 0)
+    result_summary["average_match_seconds_per_row"] = result.get("average_match_seconds_per_row", 0)
     for key in result.keys():
-        if key in ["args", "row_candidate_scores", "num_correct_matches_in_top_n"]:
+        if key in ["key", "total_rows", "num_auto_matches", "total_elapsed_seconds",
+                   "average_match_seconds_per_row", "args", "row_candidate_scores",
+                   "num_correct_matches_in_top_n", "timestamp"]:
             continue
         elif isinstance(result[key], list) or isinstance(result[key], dict):
             continue
         result_summary[key] = result[key]
-    for i, value in enumerate(result["num_correct_matches_in_top_n"]):
-        result_summary[f"top_{i+1}"] = value
     for key in result["args"].keys():
         if key in ["key", "token"]:
             continue
         result_summary[f"args_{key}"] = result["args"][key]
+    result_summary["timestamp"] = result.get("timestamp", "")
     overall_summary.append(result_summary)
 if args.verbosity >= 2:
     print("\nOVERALL SUMMARY:")
