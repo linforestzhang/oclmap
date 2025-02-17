@@ -197,7 +197,7 @@ def mapeval(key="", api_token="", api_match_url="", input_filename="", target_re
         print("  num_to_match: ", len(df) - num_new_concept_proposed - num_excluded)
         print(f"  Total Elapsed Seconds: {round(elapsed_seconds, 2)} sec")
         print(f"  Total Match Seconds: {round(cumulative_chunk_elapsed_time,2)} sec")
-        print(f"  Total Processing Seconds: {round(results["total_processing_seconds"],2)} sec")
+        print(f"  Total Processing Seconds: {round(results['total_processing_seconds'],2)} sec")
         print(f"  Average Match Seconds per Row: {round(chunk_average_time_per_row, 2)} sec/row")
 
     # Print unmatched rows
@@ -272,7 +272,7 @@ if args.csv:
         # Skip row if 'skip' is set to True in the CSV
         if row.get('skip', False):
             if verbosity:
-                print(f"\ncsv-row[{csv_row_number}]:{row.get('key', "")}  SKIPPED")
+                print(f"\ncsv-row[{csv_row_number}]:{row.get('key', '')}  SKIPPED")
             continue
 
         # Set arguments for the current row
@@ -294,7 +294,7 @@ if args.csv:
 
         # Run mapeval with the current row arguments
         if verbosity:
-            print(f"\ncsv-row[{csv_row_number}]:{row.get('key', "")}")
+            print(f"\ncsv-row[{csv_row_number}]:{row.get('key', '')}")
         mapeval_results.append(run_mapeval_with_args(row_args))
 else:
     if not hasattr(args, 'key') or not args.key:
