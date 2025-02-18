@@ -27,6 +27,9 @@ python3 mapeval.py --key=mapeval01 -t=[your-token-here] -i=./samples/sample01.cs
 python3 mapeval.py --csv=./samples/batch01.csv -t=[your-token-here]
     -e=https://api.dev.openconceptlab.org --endpoint=/concepts/\$match/ -v=1
     --outputfile=./output/batch01_output.json --summaryfile=./output/batch01_output_summary.csv
+
+Further documentation:
+https://docs.openconceptlab.org/en/latest/oclapi/apireference/match.html
 '''
 import argparse
 import time
@@ -37,7 +40,7 @@ import pandas as pd
 
 def mapeval(key="", api_token="", api_match_url="", input_filename="", target_repo="",
             correct_map_column_name="", column_map={}, semantic=False, max_chunk_size=200,
-            knn_num_candidates=1000, top_n_threshold=5, verbosity=0):
+            knn_num_candidates=1000, top_n_threshold=5, knearest=5, verbosity=0):
     start_time = time.time()
 
     # CONSTANTS
@@ -47,12 +50,12 @@ def mapeval(key="", api_token="", api_match_url="", input_filename="", target_re
         "includeSearchMeta": True,
         "semantic": semantic,
         "limit": top_n_threshold,
-        "kNearest": 5,
+        "kNearest": knearest,
         "numCandidates": knn_num_candidates,
         "bestMatch": False
     }
     headers = {}
-    if api_token:
+    if api_token: 
         headers["Authorization"] = "Token %s" % (api_token)
 
     # Print script configuration
@@ -69,6 +72,7 @@ def mapeval(key="", api_token="", api_match_url="", input_filename="", target_re
         print("  Top-n Threshold: ", top_n_threshold)
         print("  Max Chunk Size: ", max_chunk_size)
         print("  kNN Number of Candidates: ", knn_num_candidates)
+        print("  k-Nearest: ", knearest)
         print("  Verbosity: ", verbosity)
         if column_map:
             print("  Column Mapping: ", json.dumps(column_map, indent=4))
@@ -221,6 +225,7 @@ parser.add_argument('--columnmap_filename', help="JSON file containing column ma
 parser.add_argument('-s', '--semantic', default='false', choices=['true', 'false'])
 parser.add_argument('-c', '--chunk', type=int, default=200, help="Max chunk size to send to $match algorithm at a time")
 parser.add_argument('--numcandidates', type=int, default=5000, help="Approximate number of nearest neighbor candidates to consider on each shard")
+parser.add_argument('--knearest', type=int, default=5, help="Number of nearest neighbors to consider for each row")
 parser.add_argument('-n', '--topn', type=int, default=5, help="Number of results to consider for top-n test")
 parser.add_argument('-v', '--verbosity', type=int, default=0)
 parser.add_argument('-o', '--outputfile', help="Analytics output file to write the results")
@@ -251,6 +256,7 @@ def run_mapeval_with_args(args):
         max_chunk_size=int(args.chunk),
         knn_num_candidates=int(args.numcandidates),
         top_n_threshold=int(args.topn),
+        knearest=int(args.knearest),  # Pass knearest to mapeval
         verbosity=int(args.verbosity)
     )
 
@@ -289,6 +295,7 @@ if args.csv:
             chunk=row.get('chunk', args.chunk),
             numcandidates=row.get('numcandidates', args.numcandidates),
             topn=row.get('topn', args.topn),
+            knearest=row.get('knearest', args.knearest),
             verbosity=verbosity
         )
 
