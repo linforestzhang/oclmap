@@ -1516,15 +1516,15 @@ const Matching = () => {
                   mapSelected[rowIndex]?.url &&
                       <div key={mapSelected[rowIndex].url} className='col-xs-12 padding-0' style={{margin: '4px 0', display: 'flex', alignItems: 'center'}}>
                         <div className='col-xs-2' style={{fontWeight: 'bold', fontSize: '16px', display: 'flex', alignItems: 'center'}}>
-                          <Tooltip title={MATCH_TYPES[mapSelected[rowIndex].search_meta.match_type].label}>
+                          <Tooltip title={MATCH_TYPES[mapSelected[rowIndex].search_meta.match_type]?.label}>
                                 <Button
                                   sx={{
                                     '.MuiButton-startIcon': {marginRight: '4px'}
                                   }}
                                   size='small'
                                   variant='text'
-                                  color={MATCH_TYPES[mapSelected[rowIndex].search_meta.match_type].color}
-                                  startIcon={MATCH_TYPES[mapSelected[rowIndex].search_meta.match_type].icon}
+                                  color={MATCH_TYPES[mapSelected[rowIndex].search_meta.match_type]?.color}
+                                  startIcon={MATCH_TYPES[mapSelected[rowIndex].search_meta.match_type]?.icon}
                                   onClick={event => {
                                     event.preventDefault()
                                     event.stopPropagation()
