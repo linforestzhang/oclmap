@@ -1,5 +1,7 @@
 # oclmap
-OCL Mapper user interface
+OCL Mapper (beta) user interface. This open-source web application implements a collaborative terminology workflow that helps users to map spreadsheet-based input data to a target terminology stored in a OCL Terminology Server, such as LOINC, CIEL, ICD-10, or any custom data dictionary. The Mapper UI uses a AI-supported matching algorithm exposed by the OCL Terminology Server to generate candidates for mapping. Mapping healthcare data to standard terminologies is often the first step in an interoperability project, and it can be incredibly time consuming and costly, especially in resource-constrained environments that may have limited access to terminologists. Early tests of the matching algorithm (using vector embeddings and nearest neighbor search for candidate generation) demonstrated a ~60% improvement in the top-5 metric mapping our test datasets to the Columbia International eHealth Laboratory (hashtag#CIEL) interface terminology as compared to standard string matching approaches.
+
+Development is being coordinated by the OCL Mapper Squad, consisting of team members from Madiro, LOINC, Regenstrief, and CIEL. Please reach out to learn more and to get involved.
 
 ### Run Dev
 1. `docker-compose up -d`
