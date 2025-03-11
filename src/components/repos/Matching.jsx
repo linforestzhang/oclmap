@@ -641,7 +641,7 @@ const Matching = () => {
                       {
                         !isValidColumn &&
                           <Tooltip title='Hide this column'>
-                            <IconButton size='small' color='error' sx={{marginRight: '6px'}} onClick={() => onHideColumn(column)}>
+                            <IconButton size='small' color='error' sx={{marginRight: '2px'}} onClick={() => onHideColumn(column)}>
                             <VisibilityIcon fontSize='inherit' />
                           </IconButton>
                             </Tooltip>
