@@ -66,6 +66,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import AutoMatchIcon from '@mui/icons-material/MotionPhotosAutoOutlined';
 import DoneIcon from '@mui/icons-material/Done';
 import CloseIcon from '@mui/icons-material/Close';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 
 import orderBy from 'lodash/orderBy'
 import filter from 'lodash/filter'
@@ -447,6 +448,9 @@ const Matching = () => {
   const [decisionAnchorEl, setDecisionAnchorEl] = React.useState(null)
   const [searchText, setSearchText] = React.useState('')  // csv row search
   const [attributes, setAttributes] = React.useState(1)
+  const [hiddenColumns, setHiddenColumns] = React.useState([])
+  const [showHiddenColumns, setShowHiddenColumns] = React.useState(false)
+
 
   const [matchDialog, setMatchDialog] = React.useState(false)
   const [showHighlights, setShowHighlights] = React.useState(false)
@@ -576,6 +580,18 @@ const Matching = () => {
     reader.readAsBinaryString(file);
   };
 
+  const onHideColumn = column => {
+    setShowHiddenColumns(false)
+    setHiddenColumns([...hiddenColumns, column.original])
+    setColumns(reject(columns, {original: column.original}))
+  }
+
+  const onShowHiddenColumn = () => {
+    setShowHiddenColumns(true)
+    setHiddenColumns([])
+    setColumns(getColumns(omit(data[0], ['__index'])))
+  }
+
   const fetchRepo = (url, _repo) => {
     APIService.new().overrideURL(url).get().then(response => setRepo(response.data?.id ? response.data : _repo))
   }
@@ -622,6 +638,14 @@ const Matching = () => {
                       onChange={(event, value) => updateColumn(position, value?.label || value)}
                     /> :
                     <b style={{display: 'flex', alignItems: 'center'}}>
+                      {
+                        !isValidColumn &&
+                          <Tooltip title='Hide this column'>
+                            <IconButton size='small' color='error' sx={{marginRight: '6px'}} onClick={() => onHideColumn(column)}>
+                            <VisibilityIcon fontSize='inherit' />
+                          </IconButton>
+                            </Tooltip>
+                      }
                       {column.label} {isValidColumn ? <ConfirmedIcon sx={{fontSize: '14px', marginLeft: '4px'}} color='success' /> : <CancelOutlinedIcon sx={{fontSize: '14px', marginLeft: '4px'}} color='warning' />}
                     </b>
                 }
@@ -1217,7 +1241,7 @@ const Matching = () => {
           </div>
         </Paper>
         {
-          (Boolean(rows?.length) || selectedMatchBucket || ROW_STATES.includes(selectedRowStatus) || searchText) &&
+          (Boolean(rows?.length) || selectedMatchBucket || ROW_STATES.includes(selectedRowStatus) || searchText || hiddenColumns.length > 0) &&
             <div className='col-xs-12' style={{padding: '0', width: '100%', height: 'calc(100vh - 300px)'}}>
               <div className='col-xs-12' style={{padding: '0 12px', display: 'flex', backgroundColor: SURFACE_COLORS.main}}>
               {
@@ -1263,6 +1287,14 @@ const Matching = () => {
                   control={<Switch disabled={!showMatchSummary || selectedRowStatus === 'unmapped'} size="small" checked={selectedMatchBucket === 'very_high'} onChange={() => onMatchTypeChange('very_high')} />}
                   label={`Auto Match (${(matchTypes.very_high || 0).toLocaleString()})`}
                 />
+                    <FormControlLabel
+                      sx={{
+                        marginLeft: '10px',
+                        '.MuiFormControlLabel-label': {fontSize: '0.875rem'}
+                      }}
+                      control={<Switch checked={showHiddenColumns} disabled={hiddenColumns.length === 0} size="small" onChange={onShowHiddenColumn} />}
+                      label={`Hidden Columns (${hiddenColumns.length.toLocaleString()})`}
+                    />
                 {
                   selectedRowStatus === 'unmapped' &&
                     <Chip
