@@ -43,6 +43,8 @@ import OutlinedInput from '@mui/material/OutlinedInput';
 import InputAdornment from '@mui/material/InputAdornment';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
+import Alert from '@mui/material/Alert';
+import Collapse from '@mui/material/Collapse';
 import { styled } from '@mui/material/styles';
 
 import JoinRightIcon from '@mui/icons-material/JoinRight';
@@ -456,6 +458,7 @@ const Matching = () => {
   const [showHighlights, setShowHighlights] = React.useState(false)
   const [showItem, setShowItem] = React.useState(false)
   const [autoMatchUnmappedOnly, setAutoMatchUnmappedOnly] = React.useState(true)
+  const [alert, setAlert] = React.useState(false)
 
   // repo state
   const [repo, setRepo] = React.useState(false)
@@ -625,7 +628,8 @@ const Matching = () => {
                 sx={{
                   width: column.width || undefined,
                   padding: isEditing ? '0 8px': '6px',
-                  backgroundColor: isUpdatedValue ? UPDATED_COLOR : WHITE
+                  backgroundColor: isUpdatedValue ? UPDATED_COLOR : WHITE,
+                  color: isValidColumn ? `primary.main` : 'rgb(204, 73, 77)',
                 }}
               >
                 {
@@ -641,12 +645,16 @@ const Matching = () => {
                       {
                         !isValidColumn &&
                           <Tooltip title='Hide this column'>
-                            <IconButton size='small' color='error' sx={{marginRight: '2px'}} onClick={() => onHideColumn(column)}>
-                            <VisibilityIcon fontSize='inherit' />
-                          </IconButton>
-                            </Tooltip>
+                            <IconButton size='small' color='warning' sx={{marginRight: '2px'}} onClick={() => onHideColumn(column)}>
+                              <VisibilityIcon fontSize='inherit' />
+                            </IconButton>
+                          </Tooltip>
                       }
-                      {column.label} {isValidColumn ? <ConfirmedIcon sx={{fontSize: '14px', marginLeft: '4px'}} color='success' /> : <CancelOutlinedIcon sx={{fontSize: '14px', marginLeft: '4px'}} color='warning' />}
+                      <Tooltip title={isValidColumn ? `${column.label} is a valid attribute for matching` : `${column.label} is NOT a valid for attribute for matching`}>
+                        <span style={{display: 'flex', alignItems: 'center'}}>
+                          {column.label} {isValidColumn ? <ConfirmedIcon sx={{fontSize: '14px', marginLeft: '4px' }} color='success' /> : <CancelOutlinedIcon sx={{fontSize: '14px', marginLeft: '4px'}} color='error' />}
+                          </span>
+                </Tooltip>
                     </b>
                 }
               </TableCell>
@@ -883,6 +891,8 @@ const Matching = () => {
     return row
   }
 
+  const isAnyValidColumn = () => Boolean(find(columns, column => isValidColumnValue(column.label)))
+
   const isValidColumnValue = value => {
     if(!value)
       return false
@@ -903,9 +913,15 @@ const Matching = () => {
   const onGetCandidatesSubmit = event => {
     event.stopPropagation()
     event.preventDefault()
-    setStartMatchingAt(moment())
-    setLoadingMatches(true)
-    getRowsResults(data)
+    setAlert(false)
+    if(isAnyValidColumn()){
+      setStartMatchingAt(moment())
+      setLoadingMatches(true)
+      getRowsResults(data)
+    } else {
+      setAlert({message: 'None of the columns are valid for matching, please edit and assign valid columns.'})
+      setTimeout(() => setAlert(false), 10000)
+    }
     setMatchDialog(false)
   }
 
@@ -1121,6 +1137,8 @@ const Matching = () => {
   }
 
   const fetchOtherCandidates = () => {
+    setAlert(false)
+    if(isAnyValidColumn()) {
       const payload = getPayloadForMatching([row], repo)
       APIService.concepts()
         .appendToUrl('$match/')
@@ -1138,6 +1156,10 @@ const Matching = () => {
           if(items.length > 0)
             setTimeout(() => highlightTexts(items, null, false), 100)
         });
+    } else {
+      setAlert({message: 'None of the columns are valid for matching, please edit and assign valid columns.'})
+      setTimeout(() => setAlert(false), 6000)
+    }
   }
 
   const searchCandidates = () => {
@@ -1356,6 +1378,24 @@ const Matching = () => {
                       </React.Fragment>
                 }
               </div>
+              <Collapse in={Boolean(alert?.message)}>
+              <Alert
+                severity={alert?.severity || 'error'}
+                action={
+                  <IconButton
+                    aria-label="close"
+                    color="inherit"
+                    size="small"
+                    onClick={() => setAlert(false)}
+                  >
+                    <CloseIcon fontSize="inherit" />
+                  </IconButton>
+                }
+                sx={{ mb: 2 }}
+              >
+                {alert.message}
+              </Alert>
+              </Collapse>
               <TableVirtuoso
                 style={{borderRadius: '10px', maxHeight: showMatchSummary ? isSplitView ? 'calc(100vh - 350px)' : 'calc(100vh - 305px)' : 'calc(100vh - 245px)'}}
                 data={rows}
@@ -1640,6 +1680,24 @@ const Matching = () => {
                     Fetch
                   </Button>
                 </div>
+                <Collapse in={Boolean(alert?.message)}>
+                  <Alert
+                    severity={alert?.severity || 'error'}
+                    action={
+                      <IconButton
+                        aria-label="close"
+                        color="inherit"
+                        size="small"
+                        onClick={() => setAlert(false)}
+                      >
+                        <CloseIcon fontSize="inherit" />
+                      </IconButton>
+                    }
+                    sx={{ mb: 2 }}
+                  >
+                    {alert.message}
+                  </Alert>
+                </Collapse>
                 <div className='col-xs-12 padding-0' style={{display: 'flex', alignItems: 'center'}}>
                   <SearchResults
                     id={rowIndex}
