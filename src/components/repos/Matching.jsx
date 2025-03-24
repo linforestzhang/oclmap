@@ -517,8 +517,40 @@ const Matching = () => {
     setData(prevData => map(prevData, row => (row.__index === index ? {...row, [`${columnKey}__updated`]: newValue} : row)))
   }
 
+  const resetState = () => {
+    setRowStatuses({reviewed: [], readyForReview: [], unmapped: []})
+    setDecisions({})
+    setDecisionFilters([])
+    setMatchTypes({very_high: 0, high: 0, low: 0, no_match: 0})
+    setMatchedConcepts([])
+    setOtherMatchedConcepts([])
+    setSearchedConcepts({})
+    setNotes({})
+    setProposed({})
+    setMapSelected({})
+    setStartMatchingAt(false)
+    setEndMatchingAt(false)
+    setSearchStr('')
+    setRow(false)
+    setLoadingMatches(false)
+    setEdit([])
+    setSelectedRowStatus('all')
+    setEditName(false)
+    setDecisionTab('map_and_review')
+    setAlgoMenuAnchorEl(null)
+    setDecisionAnchorEl(null)
+    setSearchText('')
+    setAttributes(1)
+    setHiddenColumns([])
+    setShowHiddenColumns(false)
+    setShowItem(false)
+    setAutoMatchUnmappedOnly(true)
+    setAlert(false)
+  }
+
 
   const handleFileUpload = event => {
+    resetState()
     const file = event.target.files[0];
     setFile(file)
     const reader = new FileReader();
