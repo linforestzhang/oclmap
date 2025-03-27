@@ -93,6 +93,7 @@ import pickBy from 'lodash/pickBy'
 import every from 'lodash/every'
 import times from 'lodash/times'
 import isEmpty from 'lodash/isEmpty'
+import findIndex from 'lodash/findIndex'
 
 import { OperationsContext } from '../app/LayoutContext';
 
@@ -438,6 +439,8 @@ const Matching = () => {
   const [startMatchingAt, setStartMatchingAt] = React.useState(false)
   const [endMatchingAt, setEndMatchingAt] = React.useState(false)
   const [searchStr, setSearchStr] = React.useState('') // concept search
+  const [candidatesOrder, setCandidatesOrder] = React.useState('desc')
+  const [candidatesOrderBy, setCandidatesOrderBy] = React.useState('search_meta.search_score')
 
   const [row, setRow] = React.useState(false)
   const [loadingMatches, setLoadingMatches] = React.useState(false)
@@ -1229,6 +1232,18 @@ const Matching = () => {
     })
   }
 
+  const onCandidatesOrderChange = (property, order) => {
+    setCandidatesOrderBy(property)
+    setCandidatesOrder(order)
+    let candidates = find(otherMatchedConcepts, c => c.row.__index === rowIndex)?.results || []
+    if(candidates.length) {
+      const newCandidates = [...otherMatchedConcepts]
+      const index = findIndex(otherMatchedConcepts, c => c.row.__index === rowIndex)
+      newCandidates[index].results = orderBy(candidates, property, order)
+      setOtherMatchedConcepts(newCandidates)
+    }
+  }
+
   return (
     <div className='col-xs-12 padding-0' style={{borderRadius: '10px'}}>
       <Paper component="div" className={isSplitView ? 'col-xs-6 split padding-0' : 'col-xs-12 split padding-0'} sx={{boxShadow: 'none', p: 0, backgroundColor: 'white', borderRadius: '10px', border: 'solid 0.3px', borderColor: 'surface.nv80', minHeight: 'calc(100vh - 100px) !important'}}>
@@ -1758,6 +1773,9 @@ const Matching = () => {
                     noPagination
                     noSorting
                     noToolbar
+                    orderBy={candidatesOrderBy}
+                    order={candidatesOrder}
+                    onOrderByChange={onCandidatesOrderChange}
                     resultContainerStyle={{height: decisionTab === 'candidates' ? (showItem ? '200px' : 'calc(100vh - 200px)') : 'auto'}}
                     onShowItemSelect={item => {
                       setShowItem(item)
@@ -1774,7 +1792,7 @@ const Matching = () => {
                         renderer: formatMappings,
                       },
                       {
-                        sortable: false,
+                        sortable: true,
                         id: 'search_meta.search_score',
                         labelKey: 'search.score',
                         renderer: (concept) => {

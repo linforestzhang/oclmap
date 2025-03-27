@@ -46,20 +46,24 @@ const EnhancedTableHead = props => {
             sortDirection={orderBy === headCell.id ? order : false}
             sx={{background: 'inherit', ...headCell.sx}}
           >
-            <TableSortLabel
-              active={orderBy === headCell.id}
-              direction={orderBy === headCell.id ? order : 'asc'}
-              onClick={headCell?.sortable === false ? undefined : createSortHandler(headCell.id)}
-            >
-              <b>{t(headCell.labelKey)}</b>
-              {
-                orderBy === headCell.id ? (
-                <Box component="span" sx={visuallyHidden}>
-                  {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                </Box>
-                ) : null
-              }
-            </TableSortLabel>
+            {
+              headCell?.sortable === false ?
+                <b>{t(headCell.labelKey)}</b> :
+              <TableSortLabel
+                active={orderBy === headCell.id}
+                direction={orderBy === headCell.id ? order : 'asc'}
+                onClick={createSortHandler(headCell.id)}
+              >
+                <b>{t(headCell.labelKey)}</b>
+                {
+                  orderBy === headCell.id ? (
+                    <Box component="span" sx={visuallyHidden}>
+                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                    </Box>
+                  ) : null
+                }
+              </TableSortLabel>
+            }
           </TableCell>
         ))}
       </TableRow>
